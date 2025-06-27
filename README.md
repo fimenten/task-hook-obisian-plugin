@@ -54,6 +54,3 @@ Results in:
 - `urgent.md`: Contains `- [ ] Finish report`
 - `personal.md`: Contains `- [ ] Call mom`
 
-## License
-
-MIT
