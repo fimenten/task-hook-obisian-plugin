@@ -1,0 +1,10 @@
+{
+  "id": "mention-task-router",
+  "name": "Mention Task Router",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Automatically route tasks with @mentions to corresponding files",
+  "author": "Your Name",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}
