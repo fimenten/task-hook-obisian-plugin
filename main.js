@@ -67,12 +67,14 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
       console.log("No mentions found");
       return;
     }
+    const activeFile = this.app.workspace.getActiveFile();
+    const currentFileName = activeFile ? activeFile.basename : "Unknown";
     const body = raw.replace(mentionRE, "").trim() || mentions.join(" ");
     const now = /* @__PURE__ */ new Date();
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
     const datetime = `${dateStr} ${timeStr}`;
-    const taskLine = `- [ ] ${body} (added: ${datetime})`;
+    const taskLine = `- [ ] ${body} (added: ${datetime}) - from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
     try {
       await Promise.all(
@@ -88,6 +90,33 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
             console.log("Creating new file:", path);
             const newFile = await this.app.vault.create(path, "# Tasks\n\n" + taskLine);
             console.log("Successfully created file:", path, newFile);
+          }
+        })
+      );
+      await Promise.all(
+        mentions.map(async (mention) => {
+          const mentionPath = `${mention}.md`;
+          const contentPath = `${body}.md`;
+          const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
+          if (!(contentFile instanceof import_obsidian.TFile)) {
+            console.log("Creating content file:", contentPath);
+            await this.app.vault.create(contentPath, `# ${body}
+
+`);
+          }
+          const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
+          const linkLine = `- [[${body}]]`;
+          if (mentionFile instanceof import_obsidian.TFile) {
+            const existingContent = await this.app.vault.read(mentionFile);
+            if (!existingContent.includes(`[[${body}]]`)) {
+              await this.app.vault.append(mentionFile, "\n" + linkLine);
+              console.log(`Added link to ${body} in ${mention}.md`);
+            }
+          } else {
+            console.log("Creating mention file with link:", mentionPath);
+            await this.app.vault.create(mentionPath, `# ${mention}
+
+${linkLine}`);
           }
         })
       );

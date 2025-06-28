@@ -62,6 +62,10 @@ export default class MentionTaskRouter extends Plugin {
       return;
     }
 
+    // Get current file name for linking back
+    const activeFile = this.app.workspace.getActiveFile();
+    const currentFileName = activeFile ? activeFile.basename : "Unknown";
+
     // メンションを除いた本文
     const body = raw.replace(mentionRE, "").trim() || mentions.join(" ");
     
@@ -73,7 +77,7 @@ export default class MentionTaskRouter extends Plugin {
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
     const datetime = `${dateStr} ${timeStr}`;
     
-    const taskLine = `- [ ] ${body} (added: ${datetime})`;
+    const taskLine = `- [ ] ${body} (added: ${datetime}) - from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
 
     try {
@@ -91,6 +95,36 @@ export default class MentionTaskRouter extends Plugin {
             console.log("Creating new file:", path);
             const newFile = await this.app.vault.create(path, "# Tasks\n\n" + taskLine);
             console.log("Successfully created file:", path, newFile);
+          }
+        })
+      );
+      
+      // Create bidirectional links between mention files and content file
+      await Promise.all(
+        mentions.map(async (mention) => {
+          const mentionPath = `${mention}.md`;
+          const contentPath = `${body}.md`;
+          
+          // Create content file (XXX.md)
+          const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
+          if (!(contentFile instanceof TFile)) {
+            console.log("Creating content file:", contentPath);
+            await this.app.vault.create(contentPath, `# ${body}\n\n`);
+          }
+          
+          // Add link to content file in mention file (hoge.md)
+          const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
+          const linkLine = `- [[${body}]]`;
+          
+          if (mentionFile instanceof TFile) {
+            const existingContent = await this.app.vault.read(mentionFile);
+            if (!existingContent.includes(`[[${body}]]`)) {
+              await this.app.vault.append(mentionFile, "\n" + linkLine);
+              console.log(`Added link to ${body} in ${mention}.md`);
+            }
+          } else {
+            console.log("Creating mention file with link:", mentionPath);
+            await this.app.vault.create(mentionPath, `# ${mention}\n\n${linkLine}`);
           }
         })
       );
