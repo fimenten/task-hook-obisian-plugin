@@ -77,7 +77,7 @@ export default class MentionTaskRouter extends Plugin {
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
     const datetime = `${dateStr} ${timeStr}`;
     
-    const taskLine = `- [ ] [[${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[tasks/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
 
     try {
@@ -121,11 +121,11 @@ export default class MentionTaskRouter extends Plugin {
           
           // Add link to content file in mention file (hoge.md)
           const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
-          const linkLine = `- [[${body}]]`;
+          const linkLine = `- [[tasks/${body}]]`;
           
           if (mentionFile instanceof TFile) {
             const existingContent = await this.app.vault.read(mentionFile);
-            if (!existingContent.includes(`[[${body}]]`)) {
+            if (!existingContent.includes(`[[tasks/${body}]]`)) {
               await this.app.vault.append(mentionFile, "\n" + linkLine);
               console.log(`Added link to ${body} in ${mention}.md`);
             }

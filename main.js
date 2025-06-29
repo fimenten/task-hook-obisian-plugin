@@ -74,7 +74,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
     const datetime = `${dateStr} ${timeStr}`;
-    const taskLine = `- [ ] [[${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[tasks/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
     try {
       await Promise.all(
@@ -109,10 +109,10 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
 `);
           }
           const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
-          const linkLine = `- [[${body}]]`;
+          const linkLine = `- [[tasks/${body}]]`;
           if (mentionFile instanceof import_obsidian.TFile) {
             const existingContent = await this.app.vault.read(mentionFile);
-            if (!existingContent.includes(`[[${body}]]`)) {
+            if (!existingContent.includes(`[[tasks/${body}]]`)) {
               await this.app.vault.append(mentionFile, "\n" + linkLine);
               console.log(`Added link to ${body} in ${mention}.md`);
             }
