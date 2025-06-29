@@ -74,7 +74,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
     const datetime = `${dateStr} ${timeStr}`;
-    const taskLine = `- [ ] ${body} (added: ${datetime}) - from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
     try {
       await Promise.all(
@@ -96,10 +96,14 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
       await Promise.all(
         mentions.map(async (mention) => {
           const mentionPath = `${mention}.md`;
-          const contentPath = `${body}.md`;
+          const contentPath = `tasks/${body}.md`;
           const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
           if (!(contentFile instanceof import_obsidian.TFile)) {
             console.log("Creating content file:", contentPath);
+            const tasksFolder = this.app.vault.getAbstractFileByPath("tasks");
+            if (!tasksFolder) {
+              await this.app.vault.createFolder("tasks");
+            }
             await this.app.vault.create(contentPath, `# ${body}
 
 `);
