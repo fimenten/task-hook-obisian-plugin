@@ -57,18 +57,37 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
           if (result && result.mentions.length > 0 && lineNum >= 0) {
             let linkedText = previousLine;
             const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
-            linkedText = linkedText.replace(mentionRE, (match, mention) => {
+            linkedText = linkedText.replace(mentionRE, (match2, mention) => {
               return `@[[${mention}]]`;
             });
-            const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
-            linkedText = linkedText.replace(wordRE, (match, word) => {
+            let processedText = linkedText;
+            const wordRE = /\b\w+\b/g;
+            let match;
+            let offset = 0;
+            while ((match = wordRE.exec(linkedText)) !== null) {
+              const word = match[0];
+              const startPos = match.index + offset;
+              const beforeText = processedText.substring(0, startPos);
+              const openBrackets = (beforeText.match(/\[\[/g) || []).length;
+              const closeBrackets = (beforeText.match(/\]\]/g) || []).length;
+              const inLink = openBrackets > closeBrackets;
+              if (inLink) {
+                continue;
+              }
+              const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
+              if (emailContext.match(/\w+@\w+\.\w+/)) {
+                continue;
+              }
               const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"];
               if (commonWords.includes(word.toLowerCase())) {
-                return word;
+                continue;
               }
               const firstMention = result.mentions[0];
-              return `[[${firstMention}/${word}]]`;
-            });
+              const replacement = `[[${firstMention}/${word}]]`;
+              processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
+              offset += replacement.length - word.length;
+            }
+            linkedText = processedText;
             editor.setLine(lineNum, linkedText);
             console.log("Replaced line with links:", linkedText);
           }

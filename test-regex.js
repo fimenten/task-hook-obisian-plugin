@@ -84,18 +84,51 @@ testCases.forEach(test => {
   });
   
   // Then, convert remaining words to [[mention/word]] links using first mention
-  const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
-  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
-  linkedText = linkedText.replace(wordRE, (match, word) => {
+  let processedText = linkedText;
+  const wordRE = /\b\w+\b/g;
+  let match;
+  let offset = 0;
+  
+  while ((match = wordRE.exec(linkedText)) !== null) {
+    const word = match[0];
+    const startPos = match.index + offset;
+    
+    // Check if this word is inside a [[...]] link
+    const beforeText = processedText.substring(0, startPos);
+    const openBrackets = (beforeText.match(/\[\[/g) || []).length;
+    const closeBrackets = (beforeText.match(/\]\]/g) || []).length;
+    const inLink = openBrackets > closeBrackets;
+    
+    if (inLink) {
+      continue;
+    }
+    
+    // Skip email addresses - check if this word is part of an email
+    const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
+    if (emailContext.match(/\w+@\w+\.\w+/)) {
+      continue;
+    }
+    
+    // Don't link common words
+    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
     if (commonWords.includes(word.toLowerCase())) {
-      return word;
+      continue;
     }
+    
     // Use the first mention for the word links
+    let replacement;
     if (mentions.length > 0) {
-      return `[[${mentions[0]}/${word}]]`;
+      replacement = `[[${mentions[0]}/${word}]]`;
+    } else {
+      replacement = `[[tasks/${word}]]`; // fallback if no mentions
     }
-    return `[[tasks/${word}]]`; // fallback if no mentions
-  });
+    
+    // Replace the word with the link
+    processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
+    offset += replacement.length - word.length;
+  }
+  
+  linkedText = processedText;
   
   console.log(`"${test.input}"`);
   console.log(`  → "${linkedText}"`);
