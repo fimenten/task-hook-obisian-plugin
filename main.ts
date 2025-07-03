@@ -93,7 +93,7 @@ export default class MentionTaskRouter extends Plugin {
               
               // Use the first mention for the word links
               const firstMention = result.mentions[0];
-              const replacement = `[[${firstMention}/${word}]]`;
+              const replacement = `[[tasks/${firstMention}-${word}]]`;
               
               // Replace the word with the link
               processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
@@ -139,7 +139,7 @@ export default class MentionTaskRouter extends Plugin {
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
     const datetime = `${dateStr} ${timeStr}`;
     
-    const taskLine = `- [ ] [[${mentions[0]}/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[tasks/${mentions[0]}-${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
 
     try {
@@ -161,33 +161,32 @@ export default class MentionTaskRouter extends Plugin {
         })
       );
       
-      // Create bidirectional links between mention files and content file
+      // Create task content files in tasks/ directory
       await Promise.all(
         mentions.map(async (mention) => {
-          const mentionPath = `${mention}.md`;
-          const contentPath = `${mention}/${body}.md`;
+          const taskContentPath = `tasks/${mention}-${body}.md`;
           
-          // Create content file (XXX.md) in mention directory
-          const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
-          if (!(contentFile instanceof TFile)) {
-            console.log("Creating content file:", contentPath);
-            
-            // Ensure mention directory exists
-            const mentionFolder = this.app.vault.getAbstractFileByPath(mention);
-            if (!mentionFolder) {
-              await this.app.vault.createFolder(mention);
-            }
-            
-            await this.app.vault.create(contentPath, `# ${body}\n\n`);
+          // Ensure tasks directory exists
+          const tasksFolder = this.app.vault.getAbstractFileByPath('tasks');
+          if (!tasksFolder) {
+            await this.app.vault.createFolder('tasks');
           }
           
-          // Add link to content file in mention file (hoge.md)
+          // Create task content file
+          const taskContentFile = this.app.vault.getAbstractFileByPath(taskContentPath);
+          if (!(taskContentFile instanceof TFile)) {
+            console.log("Creating task content file:", taskContentPath);
+            await this.app.vault.create(taskContentPath, `# ${body}\n\n`);
+          }
+          
+          // Add link to task content file in mention file
+          const mentionPath = `${mention}.md`;
           const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
-          const linkLine = `- [[${mention}/${body}]]`;
+          const linkLine = `- [[${taskContentPath.replace('.md', '')}]]`;
           
           if (mentionFile instanceof TFile) {
             const existingContent = await this.app.vault.read(mentionFile);
-            if (!existingContent.includes(`[[${mention}/${body}]]`)) {
+            if (!existingContent.includes(`[[${taskContentPath.replace('.md', '')}]]`)) {
               await this.app.vault.append(mentionFile, "\n" + linkLine);
               console.log(`Added link to ${body} in ${mention}.md`);
             }
