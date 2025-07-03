@@ -86,10 +86,10 @@ export default class MentionTaskRouter extends Plugin {
               }
               
               // Don't link common words
-              const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'は', 'が', 'を', 'に', 'と', 'で', 'の', 'だ', 'である', 'です', 'ます', 'した', 'する', 'いる', 'ある', 'から', 'まで', 'より', 'など', 'また', 'そして', 'しかし', 'でも', 'それ', 'これ', 'あれ', 'その', 'この', 'あの'];
-              if (commonWords.includes(word.toLowerCase())) {
-                continue;
-              }
+              // const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'は', 'が', 'を', 'に', 'と', 'で', 'の', 'だ', 'である', 'です', 'ます', 'した', 'する', 'いる', 'ある', 'から', 'まで', 'より', 'など', 'また', 'そして', 'しかし', 'でも', 'それ', 'これ', 'あれ', 'その', 'この', 'あの'];
+              // if (commonWords.includes(word.toLowerCase())) {
+              //   continue;
+              // }
               
               // Use the first mention for the word links
               const firstMention = result.mentions[0];
@@ -97,7 +97,7 @@ export default class MentionTaskRouter extends Plugin {
               if (!sanitizedWord || sanitizedWord === 'untitled') {
                 continue; // Skip words that can't be sanitized to valid filenames
               }
-              const replacement = `[[tasks/${firstMention}-${sanitizedWord}]]`;
+              const replacement = `[[${firstMention}/${sanitizedWord}]]`;
               
               // Replace the word with the link
               processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);

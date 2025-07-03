@@ -78,16 +78,12 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
               if (emailContext.match(/[^\s\r\n]+@[^\s\r\n]+\.[^\s\r\n]+/)) {
                 continue;
               }
-              const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "\u306F", "\u304C", "\u3092", "\u306B", "\u3068", "\u3067", "\u306E", "\u3060", "\u3067\u3042\u308B", "\u3067\u3059", "\u307E\u3059", "\u3057\u305F", "\u3059\u308B", "\u3044\u308B", "\u3042\u308B", "\u304B\u3089", "\u307E\u3067", "\u3088\u308A", "\u306A\u3069", "\u307E\u305F", "\u305D\u3057\u3066", "\u3057\u304B\u3057", "\u3067\u3082", "\u305D\u308C", "\u3053\u308C", "\u3042\u308C", "\u305D\u306E", "\u3053\u306E", "\u3042\u306E"];
-              if (commonWords.includes(word.toLowerCase())) {
-                continue;
-              }
               const firstMention = result.mentions[0];
               const sanitizedWord = this.sanitizeFilename(word);
               if (!sanitizedWord || sanitizedWord === "untitled") {
                 continue;
               }
-              const replacement = `[[tasks/${firstMention}-${sanitizedWord}]]`;
+              const replacement = `[[${firstMention}/${sanitizedWord}]]`;
               processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
               offset += replacement.length - word.length;
             }
