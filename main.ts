@@ -55,10 +55,10 @@ export default class MentionTaskRouter extends Plugin {
             
             // First, replace @mentions with [[mention]] links
             linkedText = linkedText.replace(mentionRE, (match, mention) => {
-              return `[[${mention}]]`;
+              return `@[[${mention}]]`;
             });
             
-            // Then, convert remaining words to [[tasks/word]] links
+            // Then, convert remaining words to [[mention/word]] links
             // Skip words that are already in [[...]] links, and skip email addresses
             const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
             linkedText = linkedText.replace(wordRE, (match, word) => {
@@ -67,7 +67,9 @@ export default class MentionTaskRouter extends Plugin {
               if (commonWords.includes(word.toLowerCase())) {
                 return word;
               }
-              return `[[tasks/${word}]]`;
+              // Use the first mention for the word links
+              const firstMention = result.mentions[0];
+              return `[[${firstMention}/${word}]]`;
             });
             
             // Replace the line with the linked version
@@ -107,7 +109,7 @@ export default class MentionTaskRouter extends Plugin {
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
     const datetime = `${dateStr} ${timeStr}`;
     
-    const taskLine = `- [ ] [[tasks/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[${mentions[0]}/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
 
     try {
@@ -133,17 +135,17 @@ export default class MentionTaskRouter extends Plugin {
       await Promise.all(
         mentions.map(async (mention) => {
           const mentionPath = `${mention}.md`;
-          const contentPath = `tasks/${body}.md`;
+          const contentPath = `${mention}/${body}.md`;
           
-          // Create content file (XXX.md) in tasks directory
+          // Create content file (XXX.md) in mention directory
           const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
           if (!(contentFile instanceof TFile)) {
             console.log("Creating content file:", contentPath);
             
-            // Ensure tasks directory exists
-            const tasksFolder = this.app.vault.getAbstractFileByPath("tasks");
-            if (!tasksFolder) {
-              await this.app.vault.createFolder("tasks");
+            // Ensure mention directory exists
+            const mentionFolder = this.app.vault.getAbstractFileByPath(mention);
+            if (!mentionFolder) {
+              await this.app.vault.createFolder(mention);
             }
             
             await this.app.vault.create(contentPath, `# ${body}\n\n`);
@@ -151,11 +153,11 @@ export default class MentionTaskRouter extends Plugin {
           
           // Add link to content file in mention file (hoge.md)
           const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
-          const linkLine = `- [[tasks/${body}]]`;
+          const linkLine = `- [[${mention}/${body}]]`;
           
           if (mentionFile instanceof TFile) {
             const existingContent = await this.app.vault.read(mentionFile);
-            if (!existingContent.includes(`[[tasks/${body}]]`)) {
+            if (!existingContent.includes(`[[${mention}/${body}]]`)) {
               await this.app.vault.append(mentionFile, "\n" + linkLine);
               console.log(`Added link to ${body} in ${mention}.md`);
             }

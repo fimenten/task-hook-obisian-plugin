@@ -58,7 +58,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
             let linkedText = previousLine;
             const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
             linkedText = linkedText.replace(mentionRE, (match, mention) => {
-              return `[[${mention}]]`;
+              return `@[[${mention}]]`;
             });
             const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
             linkedText = linkedText.replace(wordRE, (match, word) => {
@@ -66,7 +66,8 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
               if (commonWords.includes(word.toLowerCase())) {
                 return word;
               }
-              return `[[tasks/${word}]]`;
+              const firstMention = result.mentions[0];
+              return `[[${firstMention}/${word}]]`;
             });
             editor.setLine(lineNum, linkedText);
             console.log("Replaced line with links:", linkedText);
@@ -92,7 +93,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
     const datetime = `${dateStr} ${timeStr}`;
-    const taskLine = `- [ ] [[tasks/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[${mentions[0]}/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
     try {
       await Promise.all(
@@ -114,23 +115,23 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
       await Promise.all(
         mentions.map(async (mention) => {
           const mentionPath = `${mention}.md`;
-          const contentPath = `tasks/${body}.md`;
+          const contentPath = `${mention}/${body}.md`;
           const contentFile = this.app.vault.getAbstractFileByPath(contentPath);
           if (!(contentFile instanceof import_obsidian.TFile)) {
             console.log("Creating content file:", contentPath);
-            const tasksFolder = this.app.vault.getAbstractFileByPath("tasks");
-            if (!tasksFolder) {
-              await this.app.vault.createFolder("tasks");
+            const mentionFolder = this.app.vault.getAbstractFileByPath(mention);
+            if (!mentionFolder) {
+              await this.app.vault.createFolder(mention);
             }
             await this.app.vault.create(contentPath, `# ${body}
 
 `);
           }
           const mentionFile = this.app.vault.getAbstractFileByPath(mentionPath);
-          const linkLine = `- [[tasks/${body}]]`;
+          const linkLine = `- [[${mention}/${body}]]`;
           if (mentionFile instanceof import_obsidian.TFile) {
             const existingContent = await this.app.vault.read(mentionFile);
-            if (!existingContent.includes(`[[tasks/${body}]]`)) {
+            if (!existingContent.includes(`[[${mention}/${body}]]`)) {
               await this.app.vault.append(mentionFile, "\n" + linkLine);
               console.log(`Added link to ${body} in ${mention}.md`);
             }

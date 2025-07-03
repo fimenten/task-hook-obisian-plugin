@@ -76,19 +76,25 @@ console.log("\n\nTesting mention to link conversion:");
 testCases.forEach(test => {
   let linkedText = test.input;
   
-  // First, replace @mentions with [[mention]] links
+  const mentions = [...test.input.matchAll(mentionRE)].map((m) => m[1]);
+  
+  // First, replace @mentions with @[[mention]] links
   linkedText = linkedText.replace(mentionRE, (match, mention) => {
-    return `[[${mention}]]`;
+    return `@[[${mention}]]`;
   });
   
-  // Then, convert remaining words to [[tasks/word]] links
+  // Then, convert remaining words to [[mention/word]] links using first mention
   const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
   const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
   linkedText = linkedText.replace(wordRE, (match, word) => {
     if (commonWords.includes(word.toLowerCase())) {
       return word;
     }
-    return `[[tasks/${word}]]`;
+    // Use the first mention for the word links
+    if (mentions.length > 0) {
+      return `[[${mentions[0]}/${word}]]`;
+    }
+    return `[[tasks/${word}]]`; // fallback if no mentions
   });
   
   console.log(`"${test.input}"`);
