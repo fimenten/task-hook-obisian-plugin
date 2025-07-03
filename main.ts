@@ -3,14 +3,23 @@ import {
   TFile,
   MarkdownView,
 } from "obsidian";
-import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
 
 /**
  * MentionTaskRouter
  * - When a user finishes a line that contains @mentions,
- *   append that task (without the mentions) to `${mention}.md`.
+ *   creates ${mention}/${content}.md files and links them appropriately.
  */
+
+interface MentionResult {
+  mentions: string[];
+  content: string;
+  sanitizedContent: string;
+}
+
+interface LinkingResult {
+  originalText: string;
+  linkedText: string;
+}
 export default class MentionTaskRouter extends Plugin {
   async onload() {
     console.log("MentionTaskRouter loaded");
@@ -265,8 +274,62 @@ export default class MentionTaskRouter extends Plugin {
     return { mentions };
   }
 
+  /** テキストをリンク付きテキストに変換 */
+  private createLinkedText(originalText: string, mentions: string[]): LinkingResult {
+    let linkedText = originalText;
+    const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
+    
+    // First, replace @mentions with [[mention]] links
+    linkedText = linkedText.replace(mentionRE, (match, mention) => {
+      return `@[[${mention}]]`;
+    });
+    
+    // Then, convert remaining words to [[mention/word]] links
+    let processedText = linkedText;
+    const wordRE = /(?<!\S)[^\s\r\n]+(?!\S)/g;
+    let match;
+    let offset = 0;
+    
+    while ((match = wordRE.exec(linkedText)) !== null) {
+      const word = match[0];
+      const startPos = match.index + offset;
+      
+      // Check if this word is inside a [[...]] link
+      const beforeText = processedText.substring(0, startPos);
+      const openBrackets = (beforeText.match(/\[\[/g) || []).length;
+      const closeBrackets = (beforeText.match(/\]\]/g) || []).length;
+      const inLink = openBrackets > closeBrackets;
+      
+      if (inLink) {
+        continue;
+      }
+      
+      // Skip email addresses - check if this word is part of an email
+      const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
+      if (emailContext.match(/[^\s\r\n]+@[^\s\r\n]+\.[^\s\r\n]+/)) {
+        continue;
+      }
+      
+      // Use the first mention for the word links
+      const firstMention = mentions[0];
+      const sanitizedWord = this.sanitizeFilename(word);
+      if (!sanitizedWord || sanitizedWord === 'untitled') {
+        continue; // Skip words that can't be sanitized to valid filenames
+      }
+      const replacement = `[[${firstMention}/${sanitizedWord}]]`;
+      
+      // Replace the word with the link
+      processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
+      offset += replacement.length - word.length;
+    }
+    
+    return {
+      originalText,
+      linkedText: processedText
+    };
+  }
+
   onunload() {
     console.log("MentionTaskRouter unloaded");
   }
 }
-

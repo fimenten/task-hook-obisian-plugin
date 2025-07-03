@@ -151,7 +151,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
     const datetime = `${dateStr} ${timeStr}`;
-    const taskLine = `- [ ] [[tasks/${mentions[0]}-${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[${mentions[0]}/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
     try {
       await Promise.all(
@@ -172,11 +172,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
       );
       await Promise.all(
         mentions.map(async (mention) => {
-          const taskContentPath = `tasks/${mention}-${body}.md`;
-          const tasksFolder = this.app.vault.getAbstractFileByPath("tasks");
-          if (!tasksFolder) {
-            await this.app.vault.createFolder("tasks");
-          }
+          const taskContentPath = `${mention}/${body}.md`;
           const taskContentFile = this.app.vault.getAbstractFileByPath(taskContentPath);
           if (!(taskContentFile instanceof import_obsidian.TFile)) {
             console.log("Creating task content file:", taskContentPath);
@@ -206,6 +202,45 @@ ${linkLine}`);
       console.error("Error in task routing:", error);
     }
     return { mentions };
+  }
+  /** テキストをリンク付きテキストに変換 */
+  createLinkedText(originalText, mentions) {
+    let linkedText = originalText;
+    const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
+    linkedText = linkedText.replace(mentionRE, (match2, mention) => {
+      return `@[[${mention}]]`;
+    });
+    let processedText = linkedText;
+    const wordRE = /(?<!\S)[^\s\r\n]+(?!\S)/g;
+    let match;
+    let offset = 0;
+    while ((match = wordRE.exec(linkedText)) !== null) {
+      const word = match[0];
+      const startPos = match.index + offset;
+      const beforeText = processedText.substring(0, startPos);
+      const openBrackets = (beforeText.match(/\[\[/g) || []).length;
+      const closeBrackets = (beforeText.match(/\]\]/g) || []).length;
+      const inLink = openBrackets > closeBrackets;
+      if (inLink) {
+        continue;
+      }
+      const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
+      if (emailContext.match(/[^\s\r\n]+@[^\s\r\n]+\.[^\s\r\n]+/)) {
+        continue;
+      }
+      const firstMention = mentions[0];
+      const sanitizedWord = this.sanitizeFilename(word);
+      if (!sanitizedWord || sanitizedWord === "untitled") {
+        continue;
+      }
+      const replacement = `[[${firstMention}/${sanitizedWord}]]`;
+      processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
+      offset += replacement.length - word.length;
+    }
+    return {
+      originalText,
+      linkedText: processedText
+    };
   }
   onunload() {
     console.log("MentionTaskRouter unloaded");
