@@ -61,7 +61,7 @@ export default class MentionTaskRouter extends Plugin {
             // Then, convert remaining words to [[mention/word]] links
             // Process the text to avoid double-linking
             let processedText = linkedText;
-            const wordRE = /\b\w+\b/g;
+            const wordRE = /(?<!\S)[^\s\r\n]+(?!\S)/g;
             let match;
             let offset = 0;
             
@@ -81,19 +81,23 @@ export default class MentionTaskRouter extends Plugin {
               
               // Skip email addresses - check if this word is part of an email
               const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
-              if (emailContext.match(/\w+@\w+\.\w+/)) {
+              if (emailContext.match(/[^\s\r\n]+@[^\s\r\n]+\.[^\s\r\n]+/)) {
                 continue;
               }
               
               // Don't link common words
-              const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+              const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'は', 'が', 'を', 'に', 'と', 'で', 'の', 'だ', 'である', 'です', 'ます', 'した', 'する', 'いる', 'ある', 'から', 'まで', 'より', 'など', 'また', 'そして', 'しかし', 'でも', 'それ', 'これ', 'あれ', 'その', 'この', 'あの'];
               if (commonWords.includes(word.toLowerCase())) {
                 continue;
               }
               
               // Use the first mention for the word links
               const firstMention = result.mentions[0];
-              const replacement = `[[tasks/${firstMention}-${word}]]`;
+              const sanitizedWord = this.sanitizeFilename(word);
+              if (!sanitizedWord || sanitizedWord === 'untitled') {
+                continue; // Skip words that can't be sanitized to valid filenames
+              }
+              const replacement = `[[tasks/${firstMention}-${sanitizedWord}]]`;
               
               // Replace the word with the link
               processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
@@ -109,6 +113,31 @@ export default class MentionTaskRouter extends Plugin {
         }, 50);
       }
     });
+  }
+
+  /** ファイル名として使用可能な文字列にサニタイズ */
+  private sanitizeFilename(text: string): string {
+    if (!text) return '';
+    
+    // Remove invalid filename characters
+    // Windows: < > : " | ? * \ / and control characters (0x00-0x1f)
+    // Also remove leading/trailing dots and spaces
+    let sanitized = text
+      .replace(/[<>:"|?*\\/\x00-\x1f]/g, '')  // Remove invalid chars
+      .replace(/^[.\s]+|[.\s]+$/g, '')        // Remove leading/trailing dots and spaces
+      .trim();
+    
+    // If empty or only invalid characters, return default
+    if (!sanitized) {
+      return 'untitled';
+    }
+    
+    // Truncate if too long (most filesystems support 255 chars)
+    if (sanitized.length > 200) {
+      sanitized = sanitized.substring(0, 200);
+    }
+    
+    return sanitized;
   }
 
   /** 行を解析して該当ファイルに追記 */
@@ -129,7 +158,8 @@ export default class MentionTaskRouter extends Plugin {
     const currentFileName = activeFile ? activeFile.basename : "Unknown";
 
     // メンションを除いた本文
-    const body = raw.replace(mentionRE, "").trim() || mentions.join(" ");
+    const rawBody = raw.replace(mentionRE, "").trim() || mentions.join(" ");
+    const body = this.sanitizeFilename(rawBody);
     
     // Add current datetime
     const now = new Date();

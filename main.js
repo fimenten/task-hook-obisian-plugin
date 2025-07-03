@@ -61,7 +61,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
               return `@[[${mention}]]`;
             });
             let processedText = linkedText;
-            const wordRE = /\b\w+\b/g;
+            const wordRE = /(?<!\S)[^\s\r\n]+(?!\S)/g;
             let match;
             let offset = 0;
             while ((match = wordRE.exec(linkedText)) !== null) {
@@ -75,15 +75,19 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
                 continue;
               }
               const emailContext = linkedText.substring(Math.max(0, match.index - 20), match.index + word.length + 20);
-              if (emailContext.match(/\w+@\w+\.\w+/)) {
+              if (emailContext.match(/[^\s\r\n]+@[^\s\r\n]+\.[^\s\r\n]+/)) {
                 continue;
               }
-              const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"];
+              const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "\u306F", "\u304C", "\u3092", "\u306B", "\u3068", "\u3067", "\u306E", "\u3060", "\u3067\u3042\u308B", "\u3067\u3059", "\u307E\u3059", "\u3057\u305F", "\u3059\u308B", "\u3044\u308B", "\u3042\u308B", "\u304B\u3089", "\u307E\u3067", "\u3088\u308A", "\u306A\u3069", "\u307E\u305F", "\u305D\u3057\u3066", "\u3057\u304B\u3057", "\u3067\u3082", "\u305D\u308C", "\u3053\u308C", "\u3042\u308C", "\u305D\u306E", "\u3053\u306E", "\u3042\u306E"];
               if (commonWords.includes(word.toLowerCase())) {
                 continue;
               }
               const firstMention = result.mentions[0];
-              const replacement = `[[tasks/${firstMention}-${word}]]`;
+              const sanitizedWord = this.sanitizeFilename(word);
+              if (!sanitizedWord || sanitizedWord === "untitled") {
+                continue;
+              }
+              const replacement = `[[tasks/${firstMention}-${sanitizedWord}]]`;
               processedText = processedText.substring(0, startPos) + replacement + processedText.substring(startPos + word.length);
               offset += replacement.length - word.length;
             }
@@ -94,6 +98,19 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
         }, 50);
       }
     });
+  }
+  /** ファイル名として使用可能な文字列にサニタイズ */
+  sanitizeFilename(text) {
+    if (!text)
+      return "";
+    let sanitized = text.replace(/[<>:"|?*\\/\x00-\x1f]/g, "").replace(/^[.\s]+|[.\s]+$/g, "").trim();
+    if (!sanitized) {
+      return "untitled";
+    }
+    if (sanitized.length > 200) {
+      sanitized = sanitized.substring(0, 200);
+    }
+    return sanitized;
   }
   /** 行を解析して該当ファイルに追記 */
   async processLine(raw) {
@@ -107,7 +124,8 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     }
     const activeFile = this.app.workspace.getActiveFile();
     const currentFileName = activeFile ? activeFile.basename : "Unknown";
-    const body = raw.replace(mentionRE, "").trim() || mentions.join(" ");
+    const rawBody = raw.replace(mentionRE, "").trim() || mentions.join(" ");
+    const body = this.sanitizeFilename(rawBody);
     const now = /* @__PURE__ */ new Date();
     const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0");
