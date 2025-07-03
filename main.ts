@@ -41,9 +41,39 @@ export default class MentionTaskRouter extends Plugin {
         // Process after a short delay to let Enter complete, then get the previous line
         setTimeout(async () => {
           const newCursor = editor.getCursor();
-          const previousLine = newCursor.line > 0 ? editor.getLine(newCursor.line - 1) : "";
+          const lineNum = newCursor.line - 1;
+          const previousLine = lineNum >= 0 ? editor.getLine(lineNum) : "";
           console.log("Previous line after Enter:", previousLine);
-          await this.processLine(previousLine.trim());
+          
+          // Process the line (create tasks and files)
+          const result = await this.processLine(previousLine.trim());
+          
+          // Replace mentions and words with links in the original line
+          if (result && result.mentions.length > 0 && lineNum >= 0) {
+            let linkedText = previousLine;
+            const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
+            
+            // First, replace @mentions with [[mention]] links
+            linkedText = linkedText.replace(mentionRE, (match, mention) => {
+              return `[[${mention}]]`;
+            });
+            
+            // Then, convert remaining words to [[tasks/word]] links
+            // Skip words that are already in [[...]] links, and skip email addresses
+            const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
+            linkedText = linkedText.replace(wordRE, (match, word) => {
+              // Don't link common words like "the", "a", "an", etc.
+              const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+              if (commonWords.includes(word.toLowerCase())) {
+                return word;
+              }
+              return `[[tasks/${word}]]`;
+            });
+            
+            // Replace the line with the linked version
+            editor.setLine(lineNum, linkedText);
+            console.log("Replaced line with links:", linkedText);
+          }
         }, 50);
       }
     });
@@ -59,7 +89,7 @@ export default class MentionTaskRouter extends Plugin {
     
     if (!mentions.length) {
       console.log("No mentions found");
-      return;
+      return null;
     }
 
     // Get current file name for linking back
@@ -140,6 +170,8 @@ export default class MentionTaskRouter extends Plugin {
     } catch (error) {
       console.error("Error in task routing:", error);
     }
+    
+    return { mentions };
   }
 
   onunload() {

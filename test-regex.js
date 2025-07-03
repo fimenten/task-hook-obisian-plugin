@@ -30,6 +30,11 @@ const testCases = [
     input: "Email john@example.com about @meeting",
     expectedMentions: ["meeting"],
     expectedBody: "Email john@example.com about"
+  },
+  {
+    input: "@hogehoge something",
+    expectedMentions: ["hogehoge"],
+    expectedBody: "something"
   }
 ];
 
@@ -64,4 +69,29 @@ testCases.forEach(test => {
   if (mentions.length > 0) {
     console.log(`"${test.input}" → ${mentions.map(m => `${m}.md`).join(", ")}`);
   }
+});
+
+// Test link replacement
+console.log("\n\nTesting mention to link conversion:");
+testCases.forEach(test => {
+  let linkedText = test.input;
+  
+  // First, replace @mentions with [[mention]] links
+  linkedText = linkedText.replace(mentionRE, (match, mention) => {
+    return `[[${mention}]]`;
+  });
+  
+  // Then, convert remaining words to [[tasks/word]] links
+  const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
+  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+  linkedText = linkedText.replace(wordRE, (match, word) => {
+    if (commonWords.includes(word.toLowerCase())) {
+      return word;
+    }
+    return `[[tasks/${word}]]`;
+  });
+  
+  console.log(`"${test.input}"`);
+  console.log(`  → "${linkedText}"`);
+  console.log();
 });

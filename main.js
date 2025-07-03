@@ -50,9 +50,27 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
         console.log("Current line:", currentLine);
         setTimeout(async () => {
           const newCursor = editor.getCursor();
-          const previousLine = newCursor.line > 0 ? editor.getLine(newCursor.line - 1) : "";
+          const lineNum = newCursor.line - 1;
+          const previousLine = lineNum >= 0 ? editor.getLine(lineNum) : "";
           console.log("Previous line after Enter:", previousLine);
-          await this.processLine(previousLine.trim());
+          const result = await this.processLine(previousLine.trim());
+          if (result && result.mentions.length > 0 && lineNum >= 0) {
+            let linkedText = previousLine;
+            const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
+            linkedText = linkedText.replace(mentionRE, (match, mention) => {
+              return `[[${mention}]]`;
+            });
+            const wordRE = /(?<!\[\[)(?<![[\w/@.])(\b\w+\b)(?!@\w+\.\w+)(?![\w\]])(?!\]\])/g;
+            linkedText = linkedText.replace(wordRE, (match, word) => {
+              const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"];
+              if (commonWords.includes(word.toLowerCase())) {
+                return word;
+              }
+              return `[[tasks/${word}]]`;
+            });
+            editor.setLine(lineNum, linkedText);
+            console.log("Replaced line with links:", linkedText);
+          }
         }, 50);
       }
     });
@@ -65,7 +83,7 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
     console.log("Found mentions:", mentions);
     if (!mentions.length) {
       console.log("No mentions found");
-      return;
+      return null;
     }
     const activeFile = this.app.workspace.getActiveFile();
     const currentFileName = activeFile ? activeFile.basename : "Unknown";
@@ -128,6 +146,7 @@ ${linkLine}`);
     } catch (error) {
       console.error("Error in task routing:", error);
     }
+    return { mentions };
   }
   onunload() {
     console.log("MentionTaskRouter unloaded");
