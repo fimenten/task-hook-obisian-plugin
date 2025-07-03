@@ -199,7 +199,7 @@ export default class MentionTaskRouter extends Plugin {
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
     const datetime = `${dateStr} ${timeStr}`;
     
-    const taskLine = `- [ ] [[tasks/${mentions[0]}-${body}]], added: ${datetime}, from [[${currentFileName}]]`;
+    const taskLine = `- [ ] [[${mentions[0]}/${body}]], added: ${datetime}, from [[${currentFileName}]]`;
     console.log("Task line:", taskLine);
 
     try {
@@ -224,13 +224,13 @@ export default class MentionTaskRouter extends Plugin {
       // Create task content files in tasks/ directory
       await Promise.all(
         mentions.map(async (mention) => {
-          const taskContentPath = `tasks/${mention}-${body}.md`;
+          const taskContentPath = `${mention}/${body}.md`;
           
           // Ensure tasks directory exists
-          const tasksFolder = this.app.vault.getAbstractFileByPath('tasks');
-          if (!tasksFolder) {
-            await this.app.vault.createFolder('tasks');
-          }
+          // const tasksFolder = this.app.vault.getAbstractFileByPath('tasks');
+          // if (!tasksFolder) {
+          //   await this.app.vault.createFolder('tasks');
+          // }
           
           // Create task content file
           const taskContentFile = this.app.vault.getAbstractFileByPath(taskContentPath);
