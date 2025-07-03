@@ -119,6 +119,23 @@ export default class MentionTaskRouter extends Plugin {
   private sanitizeFilename(text: string): string {
     if (!text) return '';
     
+    // Check if the text contains template syntax (Templater or other templates)
+    // If it does, preserve it as-is for template processing
+    const templatePatterns = [
+      /<%.*?%>/g,        // Templater syntax: <% ... %>
+      /{{.*?}}/g,        // Handlebars/Mustache syntax: {{ ... }}
+      /\[\[.*?\]\]/g,    // Obsidian link syntax: [[ ... ]]
+    ];
+    
+    // If text contains template syntax, return it unchanged
+    // to allow template processing to occur
+    for (const pattern of templatePatterns) {
+      if (pattern.test(text)) {
+        return text;
+      }
+    }
+    
+    // Standard filename sanitization for non-template content
     // Remove invalid filename characters
     // Windows: < > : " | ? * \ / and control characters (0x00-0x1f)
     // Also remove leading/trailing dots and spaces
@@ -143,6 +160,19 @@ export default class MentionTaskRouter extends Plugin {
   /** 行を解析して該当ファイルに追記 */
   private async processLine(raw: string) {
     console.log("processLine called with:", raw);
+    
+    // Skip processing if line contains template syntax
+    const templatePatterns = [
+      /<%.*?%>/g,        // Templater syntax: <% ... %>
+      /{{.*?}}/g,        // Handlebars/Mustache syntax: {{ ... }}
+    ];
+    
+    for (const pattern of templatePatterns) {
+      if (pattern.test(raw)) {
+        console.log("Skipping line with template syntax:", raw);
+        return null;
+      }
+    }
     
     const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
     const mentions = [...raw.matchAll(mentionRE)].map((m) => m[1]);

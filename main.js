@@ -99,6 +99,19 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
   sanitizeFilename(text) {
     if (!text)
       return "";
+    const templatePatterns = [
+      /<%.*?%>/g,
+      // Templater syntax: <% ... %>
+      /{{.*?}}/g,
+      // Handlebars/Mustache syntax: {{ ... }}
+      /\[\[.*?\]\]/g
+      // Obsidian link syntax: [[ ... ]]
+    ];
+    for (const pattern of templatePatterns) {
+      if (pattern.test(text)) {
+        return text;
+      }
+    }
     let sanitized = text.replace(/[<>:"|?*\\/\x00-\x1f]/g, "").replace(/^[.\s]+|[.\s]+$/g, "").trim();
     if (!sanitized) {
       return "untitled";
@@ -111,6 +124,18 @@ var MentionTaskRouter = class extends import_obsidian.Plugin {
   /** 行を解析して該当ファイルに追記 */
   async processLine(raw) {
     console.log("processLine called with:", raw);
+    const templatePatterns = [
+      /<%.*?%>/g,
+      // Templater syntax: <% ... %>
+      /{{.*?}}/g
+      // Handlebars/Mustache syntax: {{ ... }}
+    ];
+    for (const pattern of templatePatterns) {
+      if (pattern.test(raw)) {
+        console.log("Skipping line with template syntax:", raw);
+        return null;
+      }
+    }
     const mentionRE = /(?<!\S)@([^\s@/]+)/gu;
     const mentions = [...raw.matchAll(mentionRE)].map((m) => m[1]);
     console.log("Found mentions:", mentions);
